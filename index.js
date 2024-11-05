@@ -15,7 +15,7 @@ app.use(cors());
 
 // Manejador para la ruta raíz
 app.get('/', (req, res) => {
-    res.send('Bienvenido al backend de Sebastian!');
+    res.send('Bienvenido al backend de Kevin!');
 });
 
 // Manejador para la ruta GET que imprime un mensaje

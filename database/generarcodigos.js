@@ -1,76 +1,83 @@
-const mongoose = require('mongoose');
-const { v4: uuidv4 } = require('uuid'); // Para generar IDs únicos
-const moment = require('moment-timezone'); // Para manejar la zona horaria de Colombia
+const { MongoClient } = require('mongodb');
 
-// Conexión a MongoDB (ajusta la URI de tu base de datos)
-mongoose.connect('mongodb+srv://juanquintero05:8pack2SVTFiAdCuY@juandacho.3pujv.mongodb.net/margarita?retryWrites=true&w=majority&appName=Juandacho', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-}).then(() => console.log("Conectado a MongoDB"))
-  .catch((err) => console.log("Error conectando a MongoDB:", err));
+// Configuración de la conexión a la base de datos
+const uri = "mongodb+srv://sebastianquesada01:g5TZWSQZ6BscN6CF@cluster0.k6sfx.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+const client = new MongoClient(uri);
 
-// Definimos el esquema de la colección "margarita"
-const codigoSchema = new mongoose.Schema({
-  id: { type: String, required: true },
-  codigo: { type: String, required: true },
-  monto: { type: Number, required: true },
-  estado: { type: String, required: true }, // 'por reclamar' o 'ya reclamado'
-  fecha: { type: String, required: true },
-  hora: { type: String, required: true },
-  usuarioId: { type: String } // id del usuario si ya ha sido reclamado
-});
-
-// Especificar la colección "margarita" en el modelo
-const Codigo = mongoose.model('Codigo', codigoSchema);
-
-// Generar los 400 códigos ganadores
 async function generarCodigos() {
-  const codigos = [];
-  const totalGanadores = 400;
-  const montos = {
-    '1.000.000': 50,
-    '50.000': 150,
-    '10.000': 200
-  };
+    try {
+        // Conectar al cliente
+        await client.connect();
+        console.log("Conectado a MongoDB");
 
-  // Generar números únicos entre 000 y 999
-  const numeros = [];
-  while (numeros.length < totalGanadores) {
-    const randomNum = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-    if (!numeros.includes(randomNum)) {
-      numeros.push(randomNum);
+        // Seleccionar la base de datos y la colección
+        const db = client.db('margarita');
+        const collection = db.collection('codigos');
+
+        // Arreglos para almacenar los códigos generados
+        const codigos = [];
+
+        // Función para generar un código único
+        const generarCodigoUnico = (codigoExistente) => {
+            let codigo;
+            do {
+                codigo = String(Math.floor(Math.random() * 1000)).padStart(3, '0'); // Generar un código entre 000 y 999
+            } while (codigoExistente.includes(codigo));
+            return codigo;
+        };
+
+        const codigosExistentes = await collection.find({}).toArray();
+        const codigosUsados = codigosExistentes.map(c => c.codigo);
+
+        // Generar códigos de 1,000,000
+        for (let i = 0; i < 50; i++) {
+            const codigo = generarCodigoUnico(codigosUsados);
+            codigos.push({
+                id: i + 1,
+                codigo: codigo,
+                monto: 1000000,
+                estado: "por reclamar",
+                fecha: new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' }),
+            });
+            codigosUsados.push(codigo); // Agregar el código a los usados
+        }
+
+        // Generar códigos de 50,000
+        for (let i = 50; i < 200; i++) {
+            const codigo = generarCodigoUnico(codigosUsados);
+            codigos.push({
+                id: i + 1,
+                codigo: codigo,
+                monto: 50000,
+                estado: "por reclamar",
+                fecha: new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' }),
+            });
+            codigosUsados.push(codigo); // Agregar el código a los usados
+        }
+
+        // Generar códigos de 10,000
+        for (let i = 200; i < 400; i++) {
+            const codigo = generarCodigoUnico(codigosUsados);
+            codigos.push({
+                id: i + 1,
+                codigo: codigo,
+                monto: 10000,
+                estado: "por reclamar",
+                fecha: new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' }),
+            });
+            codigosUsados.push(codigo); // Agregar el código a los usados
+        }
+
+        // Insertar los códigos en la colección
+        const resultado = await collection.insertMany(codigos);
+        console.log(`Se han insertado ${resultado.insertedCount} códigos.`);
+
+    } catch (error) {
+        console.error("Error al generar códigos:", error);
+    } finally {
+        // Cerrar la conexión
+        await client.close();
     }
-  }
-
-  // Asignar los montos correspondientes a los códigos ganadores
-  let indice = 0;
-  for (const [monto, cantidad] of Object.entries(montos)) {
-    for (let i = 0; i < cantidad; i++) {
-      const ahora = moment().tz("America/Bogota");
-      const fecha = ahora.format('YYYY-MM-DD');
-      const hora = ahora.format('HH:mm:ss');
-
-      codigos.push({
-        id: uuidv4(), // Genera un ID único para cada código
-        codigo: numeros[indice],
-        monto: parseInt(monto.replace('.', '')), // Convierte el monto a número
-        estado: 'por reclamar', // Todos los códigos empiezan como 'por reclamar'
-        fecha,
-        hora,
-        usuarioId: null // No tiene usuario aún
-      });
-      indice++;
-    }
-  }
-
-  // Insertar los códigos en la colección "margarita"
-  try {
-    await Codigo.insertMany(codigos);
-    console.log("¡400 códigos ganadores insertados con éxito en la colección margarita!");
-  } catch (error) {
-    console.error("Error al insertar los códigos:", error);
-  }
 }
 
-// Llamar a la función para generar los códigos
-generarCodigos();
+generarCodigos().catch(console.error);

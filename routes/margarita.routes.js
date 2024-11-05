@@ -2,7 +2,7 @@ const express = require('express');
 const dotenv = require('dotenv');
 const mongoose = require('mongoose');
 const router = express.Router();
-const { login, register, reclamarCodigo, obtenerHistorialReclamos } = require('./controllers/margaritaControllers'); // Importa tanto login como register
+const { login, register, reclamarCodigo, obtenerHistorial, loginAdmin, registerAdmin,obtenerGanadores  } =require('./controllers/margaritaControllers'); // Importa tanto login como register
 
 // Cargar las variables de entorno correctamente
 dotenv.config({ path: './config.env' });
@@ -20,6 +20,12 @@ mongoose.connect(process.env.MONGO_URI)
 router.post('/login', login);
 router.post('/register', register); // Asegúrate de que register esté definido y importado
 router.post('/reclamar',reclamarCodigo); 
-router.post('/historial', obtenerHistorialReclamos);
+router.get('/historial/:userId', obtenerHistorial);
+router.post('/loginadmin', loginAdmin);
+router.post('/registeradmin', registerAdmin);
+router.get('/ganadores', obtenerGanadores);
+
+
+
 
 module.exports = router;
